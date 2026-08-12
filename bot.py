@@ -200,21 +200,19 @@ def get_withdraw_methods_keyboard():
         ]
     }
 
-# ================== ПРИВЕТСТВИЕ (С ЦИТАТОЙ) ==================
+# ================== ПРИВЕТСТВИЕ ==================
 def handle_start(chat_id):
     text = (
-        "<b>Playerok | Гарант-бот</b>\n\n"
-        "<b>Добро пожаловать 🎉</b>\n\n"
-        "<blockquote>"
-        "✔ <b>PlayerOk</b> — специализированный сервис по обеспечению безопасности внебиржевых сделок.\n\n"
-        "⚠️ Автоматизированный алгоритм исполнения.\n"
-        "⚠️ Скорость и автоматизация.\n"
-        "⚠️ Удобный и быстрый вывод средств."
-        "</blockquote>\n\n"
-        "- Комиссия сервиса: 10%\n"
-        "- Режим работы: 24/7\n"
-        "- Поддержка: @playerokevents\n\n"
-        "<i>Выберите нужный раздел ниже:</i>"
+        "<blockquote><b>Playerok | Гарант-бот</b></blockquote>\n\n"
+        "<blockquote><b>Добро пожаловать 🎉</b></blockquote>\n\n"
+        "<blockquote>🛡️ <b>PlayerOK</b> — специализированный сервис по обеспечению безопасности внебиржевых сделок.</blockquote>\n\n"
+        "<blockquote>🎁 Автоматизированный алгоритм исполнения.</blockquote>\n"
+        "<blockquote>🔒 Скорость и автоматизация.</blockquote>\n"
+        "<blockquote>📈 Удобный и быстрый вывод средств.</blockquote>\n\n"
+        "<blockquote>• Комиссия сервиса: 10%</blockquote>\n"
+        "<blockquote>• Режим работы: 24/7</blockquote>\n"
+        "<blockquote>• Поддержка: @playerokevents</blockquote>\n\n"
+        "📌 <b>Выберите нужный раздел ниже:</b>"
     )
     reply_markup = get_main_menu_keyboard()
     try:
@@ -239,18 +237,15 @@ def process_callback(callback):
 
     print(f"Callback: {data}")
 
-    # ---- Назад ----
     if data == 'back':
         handle_start(chat_id)
         return
 
-    # ---- Создать Сделку ----
     if data == 'create_deal':
         text = "🛡️ <b>Выберите категорию</b>"
         edit_message_caption(chat_id, message_id, text, get_games_keyboard())
         return
 
-    # ---- Выбор игры ----
     if data.startswith('game_'):
         game = data.split('_')[1]
         if game == 'standoff':
@@ -267,7 +262,6 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_games_keyboard())
         return
 
-    # ---- Выбор категории ----
     if data.startswith('cat_'):
         category = data.split('_')[1]
         pending_data[user_id]['category'] = category
@@ -275,7 +269,6 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_role_keyboard())
         return
 
-    # ---- Выбор роли ----
     if data == 'role_buyer' or data == 'role_seller':
         role = 'buyer' if data == 'role_buyer' else 'seller'
         pending_data[user_id]['role'] = role
@@ -287,12 +280,10 @@ def process_callback(callback):
         states[user_id] = 'awaiting_deal_data'
         return
 
-    # ---- Кошелек ----
     if data == 'wallet':
         show_wallet(chat_id, message_id, user_id)
         return
 
-    # ---- Безопасность ----
     if data == 'security':
         text = (
             "🛡️<b>Безопасность PlayerOK Гарант</b>\n\n"
@@ -306,7 +297,6 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
-    # ---- Вывод средств ----
     if data == 'withdraw_menu':
         text = "🛡️<b>Выберите категорию вывода</b>:"
         edit_message_caption(chat_id, message_id, text, get_withdraw_methods_keyboard())
@@ -321,13 +311,11 @@ def process_callback(callback):
         show_wallet(chat_id, message_id, user_id)
         return
 
-    # ---- Канал ----
     if data == 'channel':
         text = "📢 <b>Наш канал</b>\n\nПодписывайтесь на наш официальный канал, чтобы быть в курсе всех новостей и акций:\n\n👉 https://t.me/playerok_com"
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
-    # ---- Поддержка ----
     if data == 'support':
         text = (
             "🛡️<b>Поддержка PlayerOK</b>\n\n"
@@ -337,13 +325,11 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
-    # ---- Язык ----
     if data == 'language':
         text = "🌐 <b>Выберите язык</b>\n\nРусский — 🇷🇺\nEnglish — 🇬🇧\n\nПока доступен только русский язык."
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
-    # ---- Обработка сделок ----
     if data.startswith('accept_'):
         deal_number = int(data.split('_')[1])
         deal = active_deals.get(deal_number)
@@ -493,7 +479,6 @@ def process_callback(callback):
         send_message(chat_id, buyer_notify, get_empty_keyboard())
         return
 
-    # ---- Кошелек: пополнение/вывод ----
     if data == 'deposit':
         text = "🔥 <b>Пополнить баланс в Гарант боте Playerok</b> стало гораздо легче!\n\n💰 Чтобы выполнить пополнение, вам нужно обратиться к нашему модеру и менеджеру\n\n🧑‍💻 <b>Поддержка:</b> @playerokevents"
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
