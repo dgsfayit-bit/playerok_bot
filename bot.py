@@ -12,13 +12,12 @@ BASE_URL = "https://api.telegram.org/bot" + TOKEN + "/"
 
 PHOTO_URL = "https://i.ibb.co/rKxGVDJr/5218-B427-201-E-4-FAA-A386-A29224-D07-A9-A.png"
 
-# Хранилище данных
-users = {}               # user_id -> {balance, deals, username, rating, reviews_count, banned}
-states = {}              # user_id -> текущее состояние (awaiting_deal_data, awaiting_payment, etc.)
-pending_role = {}        # user_id -> 'buyer' или 'seller'
-pending_data = {}        # user_id -> временные данные для сделки (игра, категория, роль, ...)
-active_deals = {}        # deal_number -> данные сделки
-admins = []              # список username админов (без @)
+users = {}
+states = {}
+pending_role = {}
+pending_data = {}
+active_deals = {}
+admins = []
 
 def escape_html(text):
     return html.escape(str(text))
@@ -78,17 +77,25 @@ def get_updates(offset=None, timeout=60):
         return response
     return None
 
-# ================== КЛАВИАТУРЫ ==================
+# ================== КЛАВИАТУРЫ (как на скриншоте) ==================
 def get_main_menu_keyboard():
     return {
         'inline_keyboard': [
-            [{'text': 'Создать Сделку', 'callback_data': 'create_deal'}],
-            [{'text': 'Кошелек', 'callback_data': 'wallet'}],
-            [{'text': 'Безопасность', 'callback_data': 'security'}],
-            [{'text': 'Вывод средств', 'callback_data': 'withdraw_menu'}],
-            [{'text': 'Канал', 'callback_data': 'channel'}],
-            [{'text': 'Поддержка', 'callback_data': 'support'}],
-            [{'text': 'Язык', 'callback_data': 'language'}]
+            [
+                {'text': 'Создать ордер', 'callback_data': 'create_order'},
+                {'text': 'Кошельки', 'callback_data': 'wallet'}
+            ],
+            [
+                {'text': 'Безопасность', 'callback_data': 'security'},
+                {'text': 'Рефералы', 'callback_data': 'referrals'}
+            ],
+            [
+                {'text': 'Канал', 'callback_data': 'channel'},
+                {'text': 'Поддержка', 'callback_data': 'support'}
+            ],
+            [
+                {'text': 'Язык', 'callback_data': 'language'}
+            ]
         ]
     }
 
@@ -116,7 +123,6 @@ def get_games_keyboard():
     }
 
 def get_category_keyboard(game):
-    # для каждой игры возвращаем свои категории, но пока везде одинаковые
     return {
         'inline_keyboard': [
             [{'text': 'Купить/Продать Gold ⭐️', 'callback_data': f'cat_{game}_gold'}],
@@ -190,7 +196,7 @@ def get_withdraw_methods_keyboard():
         ]
     }
 
-# ================== ПРИВЕТСТВИЕ ==================
+# ================== ПРИВЕТСТВИЕ (как на скриншоте) ==================
 def handle_start(chat_id):
     user_count = len(users)
     text = (
@@ -201,9 +207,9 @@ def handle_start(chat_id):
         f"🎁 Автоматизированный алгоритм исполнения.\n"
         f"🔒 Скорость и автоматизация.\n"
         f"📈 Удобный и быстрый вывод средств.\n\n"
-        f"- Комиссия сервиса: 10%\n"
+        f"- Комиссия сервиса: 1%\n"
         f"- Режим работы: 24/7\n"
-        f"- Поддержка: @playerokevents\n\n"
+        f"- Поддержка: @RelayerHelp\n\n"
         f"<i>Выберите нужный раздел ниже:</i>"
     )
     reply_markup = get_main_menu_keyboard()
@@ -219,28 +225,24 @@ def process_callback(callback):
     username = callback['from'].get('username')
     if user_id not in users:
         users[user_id] = {'balance': 0, 'deals': 0, 'username': username or '', 'rating': 5.0, 'reviews_count': 0, 'banned': False}
-    # Проверка бана
     if users[user_id].get('banned', False):
-        answer_callback_query(callback['id'], text="❌ Вы забанены и не можете использовать бота.", show_alert=True)
+        answer_callback_query(callback['id'], text="❌ Вы забанены.", show_alert=True)
         return
-
     data = callback['data']
     chat_id = callback['message']['chat']['id']
     message_id = callback['message']['message_id']
     answer_callback_query(callback['id'])
 
-    print(f"Callback data: {data}")
+    print(f"Callback: {data}")
 
-    # Обработка "Назад в меню"
     if data == 'back':
         handle_start(chat_id)
         return
 
-    # ---------- ГЛАВНОЕ МЕНЮ ----------
-    if data == 'create_deal':
+    # ----- ГЛАВНОЕ МЕНЮ -----
+    if data == 'create_order':
         text = "🛡️ <b>Выберите категорию</b>"
-        reply_markup = get_games_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_games_keyboard())
         return
 
     if data == 'wallet':
@@ -257,20 +259,17 @@ def process_callback(callback):
             "🔥<b>Наш настоящий, единственный сайт playerok.com</b>\n\n"
             "❤️<b>Удачных вам сделок в нашей новой сфере продвижения, с любовью PlayerOK</b>"
         )
-        reply_markup = get_back_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_back_keyboard())
         return
 
-    if data == 'withdraw_menu':
-        text = "🛡️<b>Выберите категорию вывода</b>:"
-        reply_markup = get_withdraw_methods_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+    if data == 'referrals':
+        text = "🤝 <b>Реферальная программа</b>\n\nПриглашайте друзей и получайте бонусы!\nСкоро здесь будет подробная информация.\n\nСледите за обновлениями."
+        edit_message_text(chat_id, message_id, text, get_back_keyboard())
         return
 
     if data == 'channel':
         text = "📢 <b>Наш канал</b>\n\nПодписывайтесь на наш официальный канал, чтобы быть в курсе всех новостей и акций:\n\n👉 https://t.me/playerok_com"
-        reply_markup = get_back_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_back_keyboard())
         return
 
     if data == 'support':
@@ -279,65 +278,49 @@ def process_callback(callback):
             "📌<b>В случае спорных моментов во время сделки либо еще других вопросов, обращайтесь в поддержку указанную выше</b>\n\n"
             "❤️<b>С любовью, PlayerOK</b>"
         )
-        reply_markup = get_back_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_back_keyboard())
         return
 
     if data == 'language':
         text = "🌐 <b>Выберите язык</b>\n\nРусский — 🇷🇺\nEnglish — 🇬🇧\n\nПока доступен только русский язык."
-        reply_markup = get_back_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_back_keyboard())
         return
 
-    # ---------- ВЫБОР ИГРЫ ----------
+    # ----- ВЫБОР ИГРЫ -----
     if data.startswith('game_'):
         game = data.split('_')[1]
         pending_data[user_id] = {'game': game}
         text = "✅ <b>Отлично, категория почти выбрана !</b>\n<b>Выберите нужный раздел</b> ✅"
-        reply_markup = get_category_keyboard(game)
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_category_keyboard(game))
         return
 
     if data == 'back_to_games':
         text = "🛡️ <b>Выберите категорию</b>"
-        reply_markup = get_games_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_games_keyboard())
         return
 
-    # ---------- ВЫБОР КАТЕГОРИИ ----------
     if data.startswith('cat_'):
-        # формат: cat_game_category
         parts = data.split('_')
         game = parts[1]
         category = parts[2]
         pending_data[user_id]['category'] = category
-        # Сохраняем игру и категорию
         text = "🔥<b>Выберите роль</b>:"
-        reply_markup = get_role_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_role_keyboard())
         return
 
-    # ---------- ВЫБОР РОЛИ ----------
     if data == 'role_buyer' or data == 'role_seller':
         role = 'buyer' if data == 'role_buyer' else 'seller'
         pending_data[user_id]['role'] = role
         pending_data[user_id]['step'] = 'awaiting_data'
-        if role == 'buyer':
-            text = (
-                "🔥<b>Отлично, роль выбрана, осталось совсем немного</b>🔥\n\n"
-                "✅<b>Напишите в одном предложении @username второго участника, сумму сделки которую вы согласовали, и количество Gold</b>"
-            )
-        else:
-            text = (
-                "🔥<b>Отлично, роль выбрана, осталось совсем немного</b>🔥\n\n"
-                "✅<b>Напишите в одном предложении @username второго участника, сумму сделки которую вы согласовали, и количество Gold</b>"
-            )
-        reply_markup = get_back_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        text = (
+            "🔥<b>Отлично, роль выбрана, осталось совсем немного</b>🔥\n\n"
+            "✅<b>Напишите в одном предложении @username второго участника, сумму сделки которую вы согласовали, и количество Gold</b>"
+        )
+        edit_message_text(chat_id, message_id, text, get_back_keyboard())
         states[user_id] = 'awaiting_deal_data'
         return
 
-    # ---------- ОБРАБОТКА СДЕЛОК (accept, reject, pay, transfer, confirm) ----------
+    # ----- СДЕЛКИ (accept, reject, pay, transfer, confirm) -----
     if data.startswith('accept_'):
         deal_number = int(data.split('_')[1])
         deal = active_deals.get(deal_number)
@@ -347,9 +330,7 @@ def process_callback(callback):
         if user_id != deal['seller_id']:
             send_message(chat_id, "❌ Вы не являетесь продавцом в этой сделке.")
             return
-        # Продавец принимает сделку
         deal['status'] = 'accepted'
-        # Отправляем покупателю кнопку "Оплатить"
         buyer_id = deal['buyer_id']
         buyer_notify = (
             f"🎉<b>Продавец принял сделку</b>!\n\n"
@@ -372,8 +353,6 @@ def process_callback(callback):
             f"✅<b>Ожидайте пока покупатель оплатит товар</b>"
         )
         send_message(chat_id, seller_notify, get_empty_keyboard())
-
-        # Обновляем сообщение у продавца (карточка сделки) - теперь она не нужна, мы отправили новое
         edit_message_text(chat_id, message_id, "✅ Сделка принята.", get_empty_keyboard())
         return
 
@@ -386,7 +365,6 @@ def process_callback(callback):
         if user_id != deal['seller_id']:
             send_message(chat_id, "❌ Вы не являетесь продавцом в этой сделке.")
             return
-        # Отклоняем сделку
         buyer_id = deal['buyer_id']
         seller_id = deal['seller_id']
         buyer_username = deal['buyer_username']
@@ -416,17 +394,12 @@ def process_callback(callback):
         if user_id != deal['buyer_id']:
             send_message(chat_id, "❌ Вы не являетесь покупателем в этой сделке.")
             return
-        # Проверяем баланс покупателя
-        buyer_balance = users[user_id]['balance']
         amount = deal['amount']
-        if buyer_balance < amount:
-            send_message(chat_id, f"❌ Недостаточно средств. Ваш баланс: {buyer_balance} руб., сумма сделки: {amount} руб.")
+        if users[user_id]['balance'] < amount:
+            send_message(chat_id, f"❌ Недостаточно средств. Ваш баланс: {users[user_id]['balance']} руб.")
             return
-        # Списываем деньги
         users[user_id]['balance'] -= amount
-        # Меняем статус
         deal['status'] = 'paid'
-        # Уведомляем покупателя
         buyer_notify = (
             f"✅<b>Успешно! Вы оплатили сделку</b>:\n\n"
             f"🔢<b>Номер сделки</b>: #{deal_number}\n"
@@ -435,7 +408,6 @@ def process_callback(callback):
             f"📦<b>Ожидайте пока продавец передаст вам товар</b>"
         )
         send_message(chat_id, buyer_notify, get_empty_keyboard())
-        # Уведомляем продавца
         seller_id = deal['seller_id']
         seller_notify = (
             f"✅<b>Покупатель оплатил товар</b>!\n\n"
@@ -445,8 +417,6 @@ def process_callback(callback):
             f"❗️<b>Передайте покупателю товар в личные сообщения Telegram с видеозаписью, когда передадите товар и покупатель проверит, нажмите на кнопку \"Я передал\"</b>"
         )
         send_message(seller_id, seller_notify, get_transferred_keyboard(deal_number))
-        # Удаляем кнопку оплаты у покупателя
-        # Также можно удалить сообщение с кнопкой оплаты, но мы просто отправили новое
         return
 
     if data.startswith('transfer_'):
@@ -458,7 +428,6 @@ def process_callback(callback):
         if user_id != deal['seller_id']:
             send_message(chat_id, "❌ Вы не являетесь продавцом в этой сделке.")
             return
-        # Продавец передал товар
         deal['status'] = 'transferred'
         buyer_id = deal['buyer_id']
         buyer_notify = (
@@ -469,7 +438,6 @@ def process_callback(callback):
             f"❗️<b>Проверьте товар и подтвердите покупку</b>"
         )
         send_message(buyer_id, buyer_notify, get_confirm_keyboard(deal_number))
-        # Продавцу: кнопка убирается, просто уведомление
         send_message(chat_id, "✅ Вы отметили передачу товара. Ожидайте подтверждения от покупателя.", get_empty_keyboard())
         return
 
@@ -482,8 +450,6 @@ def process_callback(callback):
         if user_id != deal['buyer_id']:
             send_message(chat_id, "❌ Вы не являетесь покупателем в этой сделке.")
             return
-        # Покупатель подтверждает получение
-        # Зачисляем продавцу деньги с комиссией 10%
         seller_id = deal['seller_id']
         amount = deal['amount']
         commission = 0.1
@@ -491,13 +457,10 @@ def process_callback(callback):
         amount_to_seller = round(amount_to_seller, 2)
         if seller_id in users:
             users[seller_id]['balance'] += amount_to_seller
-        # Увеличиваем счетчик завершённых сделок у покупателя
         if user_id in users:
             users[user_id]['deals'] += 1
-        # Удаляем сделку
         del active_deals[deal_number]
 
-        # Уведомление продавцу
         seller_notify = (
             f"🎉<b>Покупатель подтвердил покупку</b>!\n"
             f"<b>Ваши средства были зачислены вам на баланс, вы можете их вывести либо на карту (USDT-кошелек), либо прямо на сайт playerok.com</b>\n"
@@ -505,45 +468,29 @@ def process_callback(callback):
             f"<b>С любовью, PlayerOK</b> ❤️"
         )
         send_message(seller_id, seller_notify, get_empty_keyboard())
-        # Уведомление покупателю
-        buyer_notify = (
-            f"🎉<b>Покупатель подтвердил покупку</b>!\n\n"
-            f"✅<b>Сделка успешно завершена!</b>"
-        )
+        buyer_notify = f"🎉<b>Покупатель подтвердил покупку</b>!\n\n✅<b>Сделка успешно завершена!</b>"
         send_message(chat_id, buyer_notify, get_empty_keyboard())
-        # Также отправляем финальное сообщение продавцу о зачислении
         return
 
-    # ---------- КОШЕЛЕК ----------
+    # ----- КОШЕЛЕК -----
     if data == 'deposit':
         text = "🔥 <b>Пополнить баланс в Гарант боте Playerok</b> стало гораздо легче!\n\n💰 Чтобы выполнить пополнение, вам нужно обратиться к нашему модеру и менеджеру\n\n🧑‍💻 <b>Поддержка:</b> @playerokevents"
-        reply_markup = get_back_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_back_keyboard())
         return
 
     if data == 'withdraw_funds':
-        # Показываем меню вывода (заглушка)
         text = "🛡️<b>Выберите категорию вывода</b>:"
-        reply_markup = get_withdraw_methods_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_withdraw_methods_keyboard())
         return
 
     if data.startswith('withdraw_'):
-        # Все варианты вывода - заглушка
         text = "✅ Функция вывода в разработке. Скоро появится."
-        reply_markup = get_back_keyboard()
-        edit_message_text(chat_id, message_id, text, reply_markup)
+        edit_message_text(chat_id, message_id, text, get_back_keyboard())
         return
 
     if data == 'back_to_wallet':
         show_wallet(chat_id, message_id, user_id)
         return
-
-    # ---------- ВЫВОД СРЕДСТВ (из кошелька) ----------
-    # пока заглушка, уже обработали выше
-
-    # ---------- ЕСЛИ НИЧЕГО НЕ ПОДОШЛО ----------
-    send_message(chat_id, "⚠️ Неизвестная команда.")
 
 def show_wallet(chat_id, message_id, user_id):
     user_data = users.get(user_id, {'balance': 0, 'deals': 0, 'username': '', 'rating': 5.0, 'reviews_count': 0})
@@ -560,8 +507,7 @@ def show_wallet(chat_id, message_id, user_id):
         f"📊 <b>Отзывы:</b> ⭐️ {rating} ({reviews} отзывов)\n\n"
         f"✨ <i>Ваши средства защищены гарантом Playerok.</i>"
     )
-    reply_markup = get_wallet_keyboard()
-    edit_message_text(chat_id, message_id, text, reply_markup)
+    edit_message_text(chat_id, message_id, text, get_wallet_keyboard())
 
 # ================== ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ==================
 def process_message(message):
@@ -571,7 +517,7 @@ def process_message(message):
     if user_id not in users:
         users[user_id] = {'balance': 0, 'deals': 0, 'username': username or '', 'rating': 5.0, 'reviews_count': 0, 'banned': False}
     if users[user_id].get('banned', False):
-        send_message(chat_id, "❌ Вы забанены и не можете использовать бота.")
+        send_message(chat_id, "❌ Вы забанены.")
         return
 
     text = message.get('text')
@@ -582,8 +528,6 @@ def process_message(message):
         handle_start(chat_id)
         return
 
-    # ===== АДМИН-КОМАНДЫ =====
-    # Проверка, является ли пользователь главным админом или админом
     is_admin = (username and (username.lower() == ADMIN_USERNAME.lower() or username.lower() in [a.lower() for a in admins]))
 
     if text.startswith('/help'):
@@ -622,14 +566,13 @@ def process_message(message):
         if not target:
             send_message(chat_id, "❌ Неверный юзернейм.")
             return
-        # Проверяем, есть ли пользователь в users
         found = False
         for uid, data in users.items():
             if data.get('username') and data['username'].lower() == target.lower():
                 found = True
                 break
         if not found:
-            send_message(chat_id, f"❌ Пользователь @{target} не найден (не писал /start).")
+            send_message(chat_id, f"❌ Пользователь @{target} не найден.")
             return
         if target.lower() == ADMIN_USERNAME.lower():
             send_message(chat_id, "❌ Это главный админ.")
@@ -766,7 +709,6 @@ def process_message(message):
         if not deal:
             send_message(chat_id, f"❌ Сделки #{deal_number} не существует.")
             return
-        # Отменяем сделку
         buyer_id = deal['buyer_id']
         seller_id = deal['seller_id']
         cancel_text = f"❌ <b>Сделка #{deal_number} отменена администратором.</b>"
@@ -824,9 +766,7 @@ def process_message(message):
         send_message(chat_id, deals_list)
         return
 
-    # ===== ОБРАБОТКА ВВОДА ДАННЫХ ДЛЯ СДЕЛКИ =====
     if states.get(user_id) == 'awaiting_deal_data':
-        # Парсим сообщение: ожидается @username сумма количество
         parts = text.split()
         if len(parts) < 3:
             send_message(chat_id, "⚠️ Неверный формат. Введите: @username сумма количество")
@@ -837,48 +777,39 @@ def process_message(message):
         except:
             send_message(chat_id, "⚠️ Сумма должна быть числом.")
             return
-        item = ' '.join(parts[2:])  # остальное - название товара
-
-        # Проверяем, есть ли второй участник в users
+        item = ' '.join(parts[2:])
         receiver_id = None
         for uid, data in users.items():
             if data.get('username') and data['username'].lower() == target_username.lower():
                 receiver_id = uid
                 break
         if receiver_id is None:
-            send_message(chat_id, f"❌ Пользователь @{target_username} не найден. Попросите его написать /start боту.")
+            send_message(chat_id, f"❌ Пользователь @{target_username} не найден.")
             states[user_id] = None
             return
-
-        # Проверяем, не занят ли получатель активной сделкой
         for deal in active_deals.values():
             if deal['seller_id'] == receiver_id or deal['buyer_id'] == receiver_id:
                 send_message(chat_id, f"❌ У пользователя @{target_username} уже есть активная сделка.")
                 states[user_id] = None
                 return
-
-        # Создаём сделку
         deal_number = random.randint(1000, 9999)
         while deal_number in active_deals:
             deal_number = random.randint(1000, 9999)
 
         game = pending_data.get(user_id, {}).get('game', 'Неизвестно')
         category = pending_data.get(user_id, {}).get('category', 'Неизвестно')
-        role = pending_data.get(user_id, {}).get('role', 'buyer')  # buyer или seller
-
-        # Определяем покупателя и продавца
+        role = pending_data.get(user_id, {}).get('role', 'buyer')
         if role == 'buyer':
             buyer_id = user_id
             seller_id = receiver_id
             buyer_username = users[user_id].get('username') or str(user_id)
             seller_username = users[receiver_id].get('username') or str(receiver_id)
-        else:  # seller
+        else:
             seller_id = user_id
             buyer_id = receiver_id
             seller_username = users[user_id].get('username') or str(user_id)
             buyer_username = users[receiver_id].get('username') or str(receiver_id)
 
-        # Сохраняем сделку
         deal_data = {
             'buyer_id': buyer_id,
             'seller_id': seller_id,
@@ -886,14 +817,13 @@ def process_message(message):
             'seller_username': seller_username,
             'amount': amount,
             'item': item,
-            'status': 'pending',  # pending, accepted, paid, transferred, completed
+            'status': 'pending',
             'game': game,
             'category': category,
             'role': role
         }
         active_deals[deal_number] = deal_data
 
-        # Отправляем уведомление покупателю (инициатору)
         buyer_notify = (
             f"✅<b>Успешно! Сделка создана и отправлена второму участнику, ожидайте его решения.</b>\n\n"
             f"🔢<b>Номер сделки</b>: #{deal_number}\n"
@@ -902,7 +832,6 @@ def process_message(message):
         )
         send_message(chat_id, buyer_notify, get_empty_keyboard())
 
-        # Отправляем уведомление продавцу (получателю)
         seller_notify = (
             f"🎉<b>Вам предложили Сделку!</b>\n\n"
             f"🔢<b>Номер сделки</b>: #{deal_number}\n"
@@ -916,12 +845,10 @@ def process_message(message):
         )
         send_message(receiver_id, seller_notify, get_accept_reject_keyboard(deal_number))
 
-        # Очищаем состояние
         states[user_id] = None
         pending_data.pop(user_id, None)
         return
 
-    # Если ничего не подошло
     send_message(chat_id, "⚠️ Неизвестная команда. Используйте /start")
 
 # ================== ГЛАВНЫЙ ЦИКЛ ==================
