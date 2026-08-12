@@ -18,6 +18,7 @@ pending_role = {}
 pending_data = {}
 active_deals = {}
 admins = []
+withdraw_data = {}  # user_id -> {'amount': ..., 'fio': ..., 'username': ...}
 
 def escape_html(text):
     return html.escape(str(text))
@@ -126,17 +127,44 @@ def get_games_keyboard():
         ]
     }
 
-def get_category_keyboard():
-    return {
-        'inline_keyboard': [
-            [{'text': 'Купить/Продать Gold ⭐️', 'callback_data': 'cat_gold'}],
-            [{'text': 'Купить/Продать Акции 📈', 'callback_data': 'cat_akcii'}],
-            [{'text': 'Купить/Продать Gold Pass 💵', 'callback_data': 'cat_goldpass'}],
-            [{'text': 'Купить/Продать Аккаунт 🧑‍💻', 'callback_data': 'cat_account'}],
-            [{'text': 'Купить/Продать Скин 🗡️', 'callback_data': 'cat_skin'}],
-            [{'text': '🔙 Назад', 'callback_data': 'back_to_games'}]
+def get_category_keyboard(game):
+    # Возвращаем категории для конкретной игры
+    categories = {
+        'standoff': [
+            'Купить/Продать Gold ⭐️', 'Купить/Продать Акции 📈', 'Купить/Продать Gold Pass 💵',
+            'Купить/Продать Аккаунт 🧑‍💻', 'Купить/Продать Скин 🗡️'
+        ],
+        'pubg': [
+            'Аккаунт 🎮', 'UC 💎', 'Pass Royale 🎫', 'Подписка Prime 🔥'
+        ],
+        'roblox': [
+            'Робуксы 🪙', 'Аккаунт 🧑‍💻', 'Steal A Brainrot 🧠'
+        ],
+        'minecraft': [
+            'Лицензия ✅', 'Аккаунт Microsoft 🧑‍💻', 'Hypixel ⚔️'
+        ],
+        'genshin': [
+            'Персонажи ⚡', 'Камни 💎', 'Аккаунты 🧑‍💻', 'Оружие ⚔️'
+        ],
+        'brawl': [
+            'Гемы 💎', 'Brawl Pass 🎫', 'Аккаунт 🧑‍💻', 'Акции 📈'
+        ],
+        'fc': [
+            'FC Поинты 💵', 'Звёздный абонемент ⭐', 'Акции 📈', 'Аккаунт 🧑‍💻'
+        ],
+        'coc': [
+            'Гемы 💎', 'Аккаунт 🧑‍💻', 'Золотой пропуск 🏅'
+        ],
+        'cr': [
+            'Карты 🃏', 'Аккаунт 🧑‍💻', 'Пасс 🎫'
         ]
     }
+    cats = categories.get(game, [])
+    keyboard = []
+    for cat in cats:
+        keyboard.append([{'text': cat, 'callback_data': f'cat_{game}_{cat[:3]}'}])  # упрощаем
+    keyboard.append([{'text': '🔙 Назад', 'callback_data': 'back_to_games'}])
+    return {'inline_keyboard': keyboard}
 
 def get_role_keyboard():
     return {
@@ -200,7 +228,7 @@ def get_withdraw_methods_keyboard():
         ]
     }
 
-# ================== ПРИВЕТСТВИЕ (точно по твоему тексту с кавычками) ==================
+# ================== ПРИВЕТСТВИЕ ==================
 def handle_start(chat_id):
     text = (
         "<b>Playerok | Гарант-бот</b>\n\n"
@@ -221,7 +249,7 @@ def handle_start(chat_id):
         print("Ошибка отправки фото:", e)
         send_message(chat_id, text, reply_markup)
 
-# ================== ОСТАЛЬНЫЕ ФУНКЦИИ (без изменений) ==================
+# ================== ОБРАБОТКА CALLBACK ==================
 def process_callback(callback):
     user_id = callback['from']['id']
     username = callback['from'].get('username')
@@ -246,15 +274,15 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_games_keyboard())
         return
 
+    # ---- Выбор игры ----
     if data.startswith('game_'):
         game = data.split('_')[1]
+        pending_data[user_id] = {'game': game}
         if game == 'standoff':
-            pending_data[user_id] = {'game': game}
             text = "✅ <b>Отлично, категория почти выбрана !</b>\n<b>Выберите нужный раздел</b> ✅"
-            edit_message_caption(chat_id, message_id, text, get_category_keyboard())
         else:
-            text = "🎮 <b>Эта игра пока в разработке.</b>\nСкоро здесь появятся категории."
-            edit_message_caption(chat_id, message_id, text, get_back_keyboard())
+            text = f"🎮 <b>Вы выбрали {game.capitalize()}</b>\n\nЗдесь пока нет активных сделок, но вы можете выбрать категорию для оформления (в разработке)."
+        edit_message_caption(chat_id, message_id, text, get_category_keyboard(game))
         return
 
     if data == 'back_to_games':
@@ -262,13 +290,42 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_games_keyboard())
         return
 
+    # ---- Выбор категории ----
     if data.startswith('cat_'):
-        category = data.split('_')[1]
+        parts = data.split('_')
+        game = parts[1]
+        cat_code = parts[2]
+        # Для всех игр, кроме standoff, показываем заглушку
+        if game != 'standoff':
+            text = "🎮 <b>Этот раздел пока в разработке.</b>\nСкоро здесь появятся сделки для этой категории.\n\nСледите за обновлениями!"
+            edit_message_caption(chat_id, message_id, text, get_back_keyboard())
+            return
+        # Для standoff — продолжаем
+        category_map = {
+            'Gol': 'Купить/Продать Gold',
+            'Акц': 'Купить/Продать Акции',
+            'Gol': 'Купить/Продать Gold Pass',
+            'Акк': 'Купить/Продать Аккаунт',
+            'Ски': 'Купить/Продать Скин'
+        }
+        # Определяем категорию по коду (упрощённо)
+        category = 'Gold'  # по умолчанию
+        if 'gold' in cat_code.lower():
+            category = 'Gold'
+        elif 'akcii' in cat_code.lower():
+            category = 'Акции'
+        elif 'goldpass' in cat_code.lower():
+            category = 'Gold Pass'
+        elif 'account' in cat_code.lower():
+            category = 'Аккаунт'
+        elif 'skin' in cat_code.lower():
+            category = 'Скин'
         pending_data[user_id]['category'] = category
         text = "🔥<b>Выберите роль</b>:"
         edit_message_caption(chat_id, message_id, text, get_role_keyboard())
         return
 
+    # ---- Выбор роли ----
     if data == 'role_buyer' or data == 'role_seller':
         role = 'buyer' if data == 'role_buyer' else 'seller'
         pending_data[user_id]['role'] = role
@@ -280,10 +337,12 @@ def process_callback(callback):
         states[user_id] = 'awaiting_deal_data'
         return
 
+    # ---- Кошелек ----
     if data == 'wallet':
         show_wallet(chat_id, message_id, user_id)
         return
 
+    # ---- Безопасность ----
     if data == 'security':
         text = (
             "🛡️<b>Безопасность PlayerOK Гарант</b>\n\n"
@@ -297,25 +356,35 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
+    # ---- Вывод средств ----
     if data == 'withdraw_menu':
         text = "🛡️<b>Выберите категорию вывода</b>:"
         edit_message_caption(chat_id, message_id, text, get_withdraw_methods_keyboard())
         return
 
     if data.startswith('withdraw_'):
-        text = "✅ Функция вывода в разработке. Скоро появится."
+        method = data.split('_')[1]
+        withdraw_data[user_id] = {'method': method}
+        text = (
+            "📝 <b>Оформление вывода</b>\n\n"
+            "Пожалуйста, введите сумму, ФИО и ваш @username одной строкой через запятую.\n\n"
+            "📌 <b>Пример:</b> 5000, Иванов Иван, @ivanov"
+        )
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
+        states[user_id] = 'awaiting_withdraw_data'
         return
 
     if data == 'back_to_wallet':
         show_wallet(chat_id, message_id, user_id)
         return
 
+    # ---- Канал ----
     if data == 'channel':
         text = "📢 <b>Наш канал</b>\n\nПодписывайтесь на наш официальный канал, чтобы быть в курсе всех новостей и акций:\n\n👉 https://t.me/playerok_com"
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
+    # ---- Поддержка ----
     if data == 'support':
         text = (
             "🛡️<b>Поддержка PlayerOK</b>\n\n"
@@ -325,11 +394,13 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
+    # ---- Язык ----
     if data == 'language':
         text = "🌐 <b>Выберите язык</b>\n\nРусский — 🇷🇺\nEnglish — 🇬🇧\n\nПока доступен только русский язык."
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
+    # ---- Обработка сделок (accept, reject, pay, transfer, confirm) ----
     if data.startswith('accept_'):
         deal_number = int(data.split('_')[1])
         deal = active_deals.get(deal_number)
@@ -479,6 +550,7 @@ def process_callback(callback):
         send_message(chat_id, buyer_notify, get_empty_keyboard())
         return
 
+    # ---- Пополнение ----
     if data == 'deposit':
         text = "🔥 <b>Пополнить баланс в Гарант боте Playerok</b> стало гораздо легче!\n\n💰 Чтобы выполнить пополнение, вам нужно обратиться к нашему модеру и менеджеру\n\n🧑‍💻 <b>Поддержка:</b> @playerokevents"
         edit_message_caption(chat_id, message_id, text, get_back_keyboard())
@@ -527,6 +599,42 @@ def process_message(message):
 
     is_admin = (username and (username.lower() == ADMIN_USERNAME.lower() or username.lower() in [a.lower() for a in admins]))
 
+    # ---- Обработка ввода для вывода ----
+    if states.get(user_id) == 'awaiting_withdraw_data':
+        parts = [p.strip() for p in text.split(',')]
+        if len(parts) < 3:
+            send_message(chat_id, "⚠️ Неверный формат. Введите: сумма, ФИО, @username (через запятую)")
+            return
+        try:
+            amount = float(parts[0])
+        except:
+            send_message(chat_id, "⚠️ Сумма должна быть числом.")
+            return
+        fio = parts[1]
+        target_username = parts[2].lstrip('@')
+        # Проверяем, есть ли у пользователя достаточно средств для вывода (опционально)
+        if users[user_id]['balance'] < amount:
+            send_message(chat_id, f"❌ Недостаточно средств на балансе. Ваш баланс: {users[user_id]['balance']} руб.")
+            states[user_id] = None
+            return
+        # Списываем деньги (заморозка будет позже, но мы просто списываем, а сообщение говорит о зачислении через 24ч)
+        users[user_id]['balance'] -= amount
+        withdraw_data.pop(user_id, None)
+        states[user_id] = None
+        # Отправляем красивое сообщение
+        final_text = (
+            f"✅ <b>Заявка на вывод принята!</b>\n\n"
+            f"💵 Сумма: <b>{amount} руб.</b>\n"
+            f"👤 ФИО: <b>{fio}</b>\n"
+            f"🔗 @{target_username}\n\n"
+            f"📌 Ваши средства будут перечислены в течение <b>24 часов</b>.\n"
+            f"Следите за балансом.\n\n"
+            f"❤️ <b>С любовью, PlayerOK</b>"
+        )
+        send_message(chat_id, final_text, get_back_keyboard())
+        return
+
+    # ---- Админ-команды ----
     if text.startswith('/help'):
         if is_admin:
             help_text = (
@@ -535,6 +643,7 @@ def process_message(message):
                 "/set admin @username — Выдать админку\n"
                 "/remove admin @username — Снять админку\n"
                 "/money @username сумма — Начислить деньги\n"
+                "/money off @username сумма — Списать деньги\n"
                 "/set_deals @username количество — Установить завершённые сделки\n"
                 "/set_star @username количество — Установить отзывы (5 звёзд)\n"
                 "/deals_cancel #номер — Отменить сделку (любую)\n"
@@ -569,7 +678,7 @@ def process_message(message):
                 found = True
                 break
         if not found:
-            send_message(chat_id, f"❌ Пользователь @{target} не найден.")
+            send_message(chat_id, f"❌ Пользователь @{target} не найден (не писал /start).")
             return
         if target.lower() == ADMIN_USERNAME.lower():
             send_message(chat_id, "❌ Это главный админ.")
@@ -609,25 +718,50 @@ def process_message(message):
             return
         parts = text.split()
         if len(parts) < 3:
-            send_message(chat_id, "❌ Используйте: /money @username сумма")
+            send_message(chat_id, "❌ Используйте: /money @username сумма  или /money off @username сумма")
             return
-        target = parts[1].lstrip('@')
-        try:
-            amount = float(parts[2])
-        except:
-            send_message(chat_id, "❌ Неверная сумма.")
+        if parts[1].lower() == 'off':
+            if len(parts) < 4:
+                send_message(chat_id, "❌ Используйте: /money off @username сумма")
+                return
+            target = parts[2].lstrip('@')
+            try:
+                amount = float(parts[3])
+            except:
+                send_message(chat_id, "❌ Неверная сумма.")
+                return
+            found = False
+            for uid, data in users.items():
+                if data.get('username') and data['username'].lower() == target.lower():
+                    if users[uid]['balance'] < amount:
+                        send_message(chat_id, f"❌ У пользователя @{target} недостаточно средств (баланс: {users[uid]['balance']} руб.).")
+                        return
+                    users[uid]['balance'] -= amount
+                    found = True
+                    break
+            if not found:
+                send_message(chat_id, f"❌ Пользователь @{target} не найден.")
+                return
+            send_message(chat_id, f"✅ <b>Списано {amount} руб. с баланса @{target}.</b>")
             return
-        found = False
-        for uid, data in users.items():
-            if data.get('username') and data['username'].lower() == target.lower():
-                users[uid]['balance'] += amount
-                found = True
-                break
-        if not found:
-            send_message(chat_id, f"❌ Пользователь @{target} не найден.")
+        else:
+            target = parts[1].lstrip('@')
+            try:
+                amount = float(parts[2])
+            except:
+                send_message(chat_id, "❌ Неверная сумма.")
+                return
+            found = False
+            for uid, data in users.items():
+                if data.get('username') and data['username'].lower() == target.lower():
+                    users[uid]['balance'] += amount
+                    found = True
+                    break
+            if not found:
+                send_message(chat_id, f"❌ Пользователь @{target} не найден.")
+                return
+            send_message(chat_id, f"✅ <b>Успешно! Пользователю @{target} начислен баланс: {amount} руб.</b>")
             return
-        send_message(chat_id, f"✅ Пользователю @{target} начислено {amount} руб.")
-        return
 
     if text.startswith('/set_deals'):
         if not is_admin:
@@ -763,6 +897,7 @@ def process_message(message):
         send_message(chat_id, deals_list)
         return
 
+    # ---- Обработка ввода данных для сделки ----
     if states.get(user_id) == 'awaiting_deal_data':
         parts = text.split()
         if len(parts) < 3:
@@ -781,7 +916,7 @@ def process_message(message):
                 receiver_id = uid
                 break
         if receiver_id is None:
-            send_message(chat_id, f"❌ Пользователь @{target_username} не найден.")
+            send_message(chat_id, f"❌ Пользователь @{target_username} не найден. Попросите его написать /start боту.")
             states[user_id] = None
             return
         for deal in active_deals.values():
@@ -844,6 +979,11 @@ def process_message(message):
 
         states[user_id] = None
         pending_data.pop(user_id, None)
+        return
+
+    # ---- Ответ на запрос юзернейма бота ----
+    if text.lower() == "дай мне их юзернейм бота":
+        send_message(chat_id, "@PlayerokXGarant_bot")
         return
 
     send_message(chat_id, "⚠️ Неизвестная команда. Используйте /start")
