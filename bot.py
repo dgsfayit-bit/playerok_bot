@@ -55,6 +55,12 @@ def send_photo(chat_id, photo, caption=None, reply_markup=None, parse_mode='HTML
         params['reply_markup'] = json.dumps(reply_markup)
     return api_request('sendPhoto', params)
 
+def edit_message_caption(chat_id, message_id, caption, reply_markup=None, parse_mode='HTML'):
+    params = {'chat_id': chat_id, 'message_id': message_id, 'caption': caption, 'parse_mode': parse_mode}
+    if reply_markup:
+        params['reply_markup'] = json.dumps(reply_markup)
+    return api_request('editMessageCaption', params)
+
 def edit_message_text(chat_id, message_id, text, reply_markup=None, parse_mode='HTML'):
     params = {'chat_id': chat_id, 'message_id': message_id, 'text': text, 'parse_mode': parse_mode}
     if reply_markup:
@@ -77,17 +83,17 @@ def get_updates(offset=None, timeout=60):
         return response
     return None
 
-# ================== КЛАВИАТУРЫ (как на скриншоте) ==================
+# ================== КЛАВИАТУРЫ ==================
 def get_main_menu_keyboard():
     return {
         'inline_keyboard': [
             [
-                {'text': 'Создать ордер', 'callback_data': 'create_order'},
-                {'text': 'Кошельки', 'callback_data': 'wallet'}
+                {'text': 'Создать Сделку', 'callback_data': 'create_deal'},
+                {'text': 'Кошелек', 'callback_data': 'wallet'}
             ],
             [
                 {'text': 'Безопасность', 'callback_data': 'security'},
-                {'text': 'Рефералы', 'callback_data': 'referrals'}
+                {'text': 'Вывод средств', 'callback_data': 'withdraw_menu'}
             ],
             [
                 {'text': 'Канал', 'callback_data': 'channel'},
@@ -122,14 +128,14 @@ def get_games_keyboard():
         ]
     }
 
-def get_category_keyboard(game):
+def get_category_keyboard():
     return {
         'inline_keyboard': [
-            [{'text': 'Купить/Продать Gold ⭐️', 'callback_data': f'cat_{game}_gold'}],
-            [{'text': 'Купить/Продать Акции 📈', 'callback_data': f'cat_{game}_akcii'}],
-            [{'text': 'Купить/Продать Gold Pass 💵', 'callback_data': f'cat_{game}_goldpass'}],
-            [{'text': 'Купить/Продать Аккаунт 🧑‍💻', 'callback_data': f'cat_{game}_account'}],
-            [{'text': 'Купить/Продать Скин 🗡️', 'callback_data': f'cat_{game}_skin'}],
+            [{'text': 'Купить/Продать Gold ⭐️', 'callback_data': 'cat_gold'}],
+            [{'text': 'Купить/Продать Акции 📈', 'callback_data': 'cat_akcii'}],
+            [{'text': 'Купить/Продать Gold Pass 💵', 'callback_data': 'cat_goldpass'}],
+            [{'text': 'Купить/Продать Аккаунт 🧑‍💻', 'callback_data': 'cat_account'}],
+            [{'text': 'Купить/Продать Скин 🗡️', 'callback_data': 'cat_skin'}],
             [{'text': '🔙 Назад', 'callback_data': 'back_to_games'}]
         ]
     }
@@ -196,21 +202,19 @@ def get_withdraw_methods_keyboard():
         ]
     }
 
-# ================== ПРИВЕТСТВИЕ (как на скриншоте) ==================
+# ================== ПРИВЕТСТВИЕ ==================
 def handle_start(chat_id):
-    user_count = len(users)
     text = (
-        f"<b>Playerok | Гарант-бот</b>\n"
-        f"{user_count} пользователей\n\n"
-        f"<b>Добро пожаловать 🎉</b>\n\n"
-        f"✔ <b>PlayerOk</b> — специализированный сервис по обеспечению безопасности внебиржевых сделок.\n\n"
-        f"🎁 Автоматизированный алгоритм исполнения.\n"
-        f"🔒 Скорость и автоматизация.\n"
-        f"📈 Удобный и быстрый вывод средств.\n\n"
-        f"- Комиссия сервиса: 1%\n"
-        f"- Режим работы: 24/7\n"
-        f"- Поддержка: @RelayerHelp\n\n"
-        f"<i>Выберите нужный раздел ниже:</i>"
+        "<b>Playerok | Гарант-бот</b>\n\n"
+        "<b>Добро пожаловать 🎉</b>\n\n"
+        "✔ <b>PlayerOk</b> — специализированный сервис по обеспечению безопасности внебиржевых сделок.\n\n"
+        "🎁 Автоматизированный алгоритм исполнения.\n"
+        "🔒 Скорость и автоматизация.\n"
+        "📈 Удобный и быстрый вывод средств.\n\n"
+        "- Комиссия сервиса: 10%\n"
+        "- Режим работы: 24/7\n"
+        "- Поддержка: @playerokevents\n\n"
+        "<i>Выберите нужный раздел ниже:</i>"
     )
     reply_markup = get_main_menu_keyboard()
     try:
@@ -235,20 +239,60 @@ def process_callback(callback):
 
     print(f"Callback: {data}")
 
+    # ---- Назад ----
     if data == 'back':
         handle_start(chat_id)
         return
 
-    # ----- ГЛАВНОЕ МЕНЮ -----
-    if data == 'create_order':
+    # ---- Создать Сделку ----
+    if data == 'create_deal':
         text = "🛡️ <b>Выберите категорию</b>"
-        edit_message_text(chat_id, message_id, text, get_games_keyboard())
+        edit_message_caption(chat_id, message_id, text, get_games_keyboard())
         return
 
+    # ---- Выбор игры ----
+    if data.startswith('game_'):
+        game = data.split('_')[1]
+        if game == 'standoff':
+            pending_data[user_id] = {'game': game}
+            text = "✅ <b>Отлично, категория почти выбрана !</b>\n<b>Выберите нужный раздел</b> ✅"
+            edit_message_caption(chat_id, message_id, text, get_category_keyboard())
+        else:
+            text = "🎮 <b>Эта игра пока в разработке.</b>\nСкоро здесь появятся категории."
+            edit_message_caption(chat_id, message_id, text, get_back_keyboard())
+        return
+
+    if data == 'back_to_games':
+        text = "🛡️ <b>Выберите категорию</b>"
+        edit_message_caption(chat_id, message_id, text, get_games_keyboard())
+        return
+
+    # ---- Выбор категории (только для Standoff 2) ----
+    if data.startswith('cat_'):
+        category = data.split('_')[1]  # gold, akcii, goldpass, account, skin
+        pending_data[user_id]['category'] = category
+        text = "🔥<b>Выберите роль</b>:"
+        edit_message_caption(chat_id, message_id, text, get_role_keyboard())
+        return
+
+    # ---- Выбор роли ----
+    if data == 'role_buyer' or data == 'role_seller':
+        role = 'buyer' if data == 'role_buyer' else 'seller'
+        pending_data[user_id]['role'] = role
+        text = (
+            "🔥<b>Отлично, роль выбрана, осталось совсем немного</b>🔥\n\n"
+            "✅<b>Напишите в одном предложении @username второго участника, сумму сделки которую вы согласовали, и количество Gold</b>"
+        )
+        edit_message_caption(chat_id, message_id, text, get_back_keyboard())
+        states[user_id] = 'awaiting_deal_data'
+        return
+
+    # ---- Кошелек ----
     if data == 'wallet':
         show_wallet(chat_id, message_id, user_id)
         return
 
+    # ---- Безопасность ----
     if data == 'security':
         text = (
             "🛡️<b>Безопасность PlayerOK Гарант</b>\n\n"
@@ -259,68 +303,47 @@ def process_callback(callback):
             "🔥<b>Наш настоящий, единственный сайт playerok.com</b>\n\n"
             "❤️<b>Удачных вам сделок в нашей новой сфере продвижения, с любовью PlayerOK</b>"
         )
-        edit_message_text(chat_id, message_id, text, get_back_keyboard())
+        edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
-    if data == 'referrals':
-        text = "🤝 <b>Реферальная программа</b>\n\nПриглашайте друзей и получайте бонусы!\nСкоро здесь будет подробная информация.\n\nСледите за обновлениями."
-        edit_message_text(chat_id, message_id, text, get_back_keyboard())
+    # ---- Вывод средств ----
+    if data == 'withdraw_menu':
+        text = "🛡️<b>Выберите категорию вывода</b>:"
+        edit_message_caption(chat_id, message_id, text, get_withdraw_methods_keyboard())
         return
 
+    if data.startswith('withdraw_'):
+        text = "✅ Функция вывода в разработке. Скоро появится."
+        edit_message_caption(chat_id, message_id, text, get_back_keyboard())
+        return
+
+    if data == 'back_to_wallet':
+        show_wallet(chat_id, message_id, user_id)
+        return
+
+    # ---- Канал ----
     if data == 'channel':
         text = "📢 <b>Наш канал</b>\n\nПодписывайтесь на наш официальный канал, чтобы быть в курсе всех новостей и акций:\n\n👉 https://t.me/playerok_com"
-        edit_message_text(chat_id, message_id, text, get_back_keyboard())
+        edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
+    # ---- Поддержка ----
     if data == 'support':
         text = (
             "🛡️<b>Поддержка PlayerOK</b>\n\n"
             "📌<b>В случае спорных моментов во время сделки либо еще других вопросов, обращайтесь в поддержку указанную выше</b>\n\n"
             "❤️<b>С любовью, PlayerOK</b>"
         )
-        edit_message_text(chat_id, message_id, text, get_back_keyboard())
+        edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
+    # ---- Язык ----
     if data == 'language':
         text = "🌐 <b>Выберите язык</b>\n\nРусский — 🇷🇺\nEnglish — 🇬🇧\n\nПока доступен только русский язык."
-        edit_message_text(chat_id, message_id, text, get_back_keyboard())
+        edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
-    # ----- ВЫБОР ИГРЫ -----
-    if data.startswith('game_'):
-        game = data.split('_')[1]
-        pending_data[user_id] = {'game': game}
-        text = "✅ <b>Отлично, категория почти выбрана !</b>\n<b>Выберите нужный раздел</b> ✅"
-        edit_message_text(chat_id, message_id, text, get_category_keyboard(game))
-        return
-
-    if data == 'back_to_games':
-        text = "🛡️ <b>Выберите категорию</b>"
-        edit_message_text(chat_id, message_id, text, get_games_keyboard())
-        return
-
-    if data.startswith('cat_'):
-        parts = data.split('_')
-        game = parts[1]
-        category = parts[2]
-        pending_data[user_id]['category'] = category
-        text = "🔥<b>Выберите роль</b>:"
-        edit_message_text(chat_id, message_id, text, get_role_keyboard())
-        return
-
-    if data == 'role_buyer' or data == 'role_seller':
-        role = 'buyer' if data == 'role_buyer' else 'seller'
-        pending_data[user_id]['role'] = role
-        pending_data[user_id]['step'] = 'awaiting_data'
-        text = (
-            "🔥<b>Отлично, роль выбрана, осталось совсем немного</b>🔥\n\n"
-            "✅<b>Напишите в одном предложении @username второго участника, сумму сделки которую вы согласовали, и количество Gold</b>"
-        )
-        edit_message_text(chat_id, message_id, text, get_back_keyboard())
-        states[user_id] = 'awaiting_deal_data'
-        return
-
-    # ----- СДЕЛКИ (accept, reject, pay, transfer, confirm) -----
+    # ---- Обработка сделок ----
     if data.startswith('accept_'):
         deal_number = int(data.split('_')[1])
         deal = active_deals.get(deal_number)
@@ -342,7 +365,6 @@ def process_callback(callback):
             f"✅<b>Ожидайте пока покупатель оплатит товар</b>"
         )
         send_message(buyer_id, buyer_notify, get_pay_keyboard(deal_number))
-
         seller_notify = (
             f"🎉<b>Продавец принял сделку</b>!\n\n"
             f"❗️<b>Покупатель</b>: @{deal['buyer_username']}\n"
@@ -353,7 +375,7 @@ def process_callback(callback):
             f"✅<b>Ожидайте пока покупатель оплатит товар</b>"
         )
         send_message(chat_id, seller_notify, get_empty_keyboard())
-        edit_message_text(chat_id, message_id, "✅ Сделка принята.", get_empty_keyboard())
+        edit_message_caption(chat_id, message_id, "✅ Сделка принята.", get_empty_keyboard())
         return
 
     if data.startswith('reject_'):
@@ -382,7 +404,7 @@ def process_callback(callback):
         send_message(buyer_id, cancel_text, get_empty_keyboard())
         send_message(seller_id, cancel_text, get_empty_keyboard())
         del active_deals[deal_number]
-        edit_message_text(chat_id, message_id, "❌ Сделка отклонена.", get_empty_keyboard())
+        edit_message_caption(chat_id, message_id, "❌ Сделка отклонена.", get_empty_keyboard())
         return
 
     if data.startswith('pay_'):
@@ -460,7 +482,6 @@ def process_callback(callback):
         if user_id in users:
             users[user_id]['deals'] += 1
         del active_deals[deal_number]
-
         seller_notify = (
             f"🎉<b>Покупатель подтвердил покупку</b>!\n"
             f"<b>Ваши средства были зачислены вам на баланс, вы можете их вывести либо на карту (USDT-кошелек), либо прямо на сайт playerok.com</b>\n"
@@ -472,24 +493,15 @@ def process_callback(callback):
         send_message(chat_id, buyer_notify, get_empty_keyboard())
         return
 
-    # ----- КОШЕЛЕК -----
+    # ---- Кошелек: пополнение/вывод ----
     if data == 'deposit':
         text = "🔥 <b>Пополнить баланс в Гарант боте Playerok</b> стало гораздо легче!\n\n💰 Чтобы выполнить пополнение, вам нужно обратиться к нашему модеру и менеджеру\n\n🧑‍💻 <b>Поддержка:</b> @playerokevents"
-        edit_message_text(chat_id, message_id, text, get_back_keyboard())
+        edit_message_caption(chat_id, message_id, text, get_back_keyboard())
         return
 
     if data == 'withdraw_funds':
         text = "🛡️<b>Выберите категорию вывода</b>:"
-        edit_message_text(chat_id, message_id, text, get_withdraw_methods_keyboard())
-        return
-
-    if data.startswith('withdraw_'):
-        text = "✅ Функция вывода в разработке. Скоро появится."
-        edit_message_text(chat_id, message_id, text, get_back_keyboard())
-        return
-
-    if data == 'back_to_wallet':
-        show_wallet(chat_id, message_id, user_id)
+        edit_message_caption(chat_id, message_id, text, get_withdraw_methods_keyboard())
         return
 
 def show_wallet(chat_id, message_id, user_id):
@@ -507,7 +519,7 @@ def show_wallet(chat_id, message_id, user_id):
         f"📊 <b>Отзывы:</b> ⭐️ {rating} ({reviews} отзывов)\n\n"
         f"✨ <i>Ваши средства защищены гарантом Playerok.</i>"
     )
-    edit_message_text(chat_id, message_id, text, get_wallet_keyboard())
+    edit_message_caption(chat_id, message_id, text, get_wallet_keyboard())
 
 # ================== ОБРАБОТКА ТЕКСТОВЫХ СООБЩЕНИЙ ==================
 def process_message(message):
@@ -796,8 +808,8 @@ def process_message(message):
         while deal_number in active_deals:
             deal_number = random.randint(1000, 9999)
 
-        game = pending_data.get(user_id, {}).get('game', 'Неизвестно')
-        category = pending_data.get(user_id, {}).get('category', 'Неизвестно')
+        game = pending_data.get(user_id, {}).get('game', 'Standoff 2')
+        category = pending_data.get(user_id, {}).get('category', 'Gold')
         role = pending_data.get(user_id, {}).get('role', 'buyer')
         if role == 'buyer':
             buyer_id = user_id
