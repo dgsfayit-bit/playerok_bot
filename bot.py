@@ -200,7 +200,7 @@ def get_withdraw_methods_keyboard():
         ]
     }
 
-# ================== ПРИВЕТСТВИЕ (новый текст с цитатами) ==================
+# ================== ПРИВЕТСТВИЕ (точно по твоему тексту с кавычками) ==================
 def handle_start(chat_id):
     text = (
         "<b>Playerok | Гарант-бот</b>\n\n"
@@ -221,7 +221,7 @@ def handle_start(chat_id):
         print("Ошибка отправки фото:", e)
         send_message(chat_id, text, reply_markup)
 
-# ================== ОБРАБОТКА CALLBACK ==================
+# ================== ОСТАЛЬНЫЕ ФУНКЦИИ (без изменений) ==================
 def process_callback(callback):
     user_id = callback['from']['id']
     username = callback['from'].get('username')
