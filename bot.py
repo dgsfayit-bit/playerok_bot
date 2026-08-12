@@ -83,23 +83,21 @@ def get_updates(offset=None, timeout=60):
         return response
     return None
 
-# ================== КЛАВИАТУРЫ ==================
+# ================== КЛАВИАТУРЫ (как на скриншоте) ==================
 def get_main_menu_keyboard():
     return {
         'inline_keyboard': [
+            [{'text': 'Создать Сделку', 'callback_data': 'create_deal'}],
             [
-                {'text': 'Создать Сделку', 'callback_data': 'create_deal'},
-                {'text': 'Кошелек', 'callback_data': 'wallet'}
+                {'text': 'Кошелек', 'callback_data': 'wallet'},
+                {'text': 'Безопасность', 'callback_data': 'security'}
             ],
             [
-                {'text': 'Безопасность', 'callback_data': 'security'},
-                {'text': 'Вывод средств', 'callback_data': 'withdraw_menu'}
+                {'text': 'Вывод средств', 'callback_data': 'withdraw_menu'},
+                {'text': 'Канал', 'callback_data': 'channel'}
             ],
             [
-                {'text': 'Канал', 'callback_data': 'channel'},
-                {'text': 'Поддержка', 'callback_data': 'support'}
-            ],
-            [
+                {'text': 'Поддержка', 'callback_data': 'support'},
                 {'text': 'Язык', 'callback_data': 'language'}
             ]
         ]
@@ -202,10 +200,11 @@ def get_withdraw_methods_keyboard():
         ]
     }
 
-# ================== ПРИВЕТСТВИЕ ==================
+# ================== ПРИВЕТСТВИЕ (как на скриншоте) ==================
 def handle_start(chat_id):
     text = (
-        "<b>Playerok | Гарант-бот</b>\n\n"
+        "<b>Playerok | Гарант-бот</b>\n"
+        f"{len(users)} пользователей\n\n"
         "<b>Добро пожаловать 🎉</b>\n\n"
         "✔ <b>PlayerOk</b> — специализированный сервис по обеспечению безопасности внебиржевых сделок.\n\n"
         "🎁 Автоматизированный алгоритм исполнения.\n"
@@ -267,9 +266,9 @@ def process_callback(callback):
         edit_message_caption(chat_id, message_id, text, get_games_keyboard())
         return
 
-    # ---- Выбор категории (только для Standoff 2) ----
+    # ---- Выбор категории ----
     if data.startswith('cat_'):
-        category = data.split('_')[1]  # gold, akcii, goldpass, account, skin
+        category = data.split('_')[1]
         pending_data[user_id]['category'] = category
         text = "🔥<b>Выберите роль</b>:"
         edit_message_caption(chat_id, message_id, text, get_role_keyboard())
