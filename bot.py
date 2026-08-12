@@ -200,18 +200,18 @@ def get_withdraw_methods_keyboard():
         ]
     }
 
-# ================== ПРИВЕТСТВИЕ ==================
+# ================== ПРИВЕТСТВИЕ (новый текст с цитатами) ==================
 def handle_start(chat_id):
     text = (
-        "<blockquote><b>Playerok | Гарант-бот</b></blockquote>\n\n"
-        "<blockquote><b>Добро пожаловать 🎉</b></blockquote>\n\n"
+        "<b>Playerok | Гарант-бот</b>\n\n"
+        "<b>Добро пожаловать 🎉</b>\n\n"
         "<blockquote>🛡️ <b>PlayerOK</b> — специализированный сервис по обеспечению безопасности внебиржевых сделок.</blockquote>\n\n"
-        "<blockquote>🎁 Автоматизированный алгоритм исполнения.</blockquote>\n"
-        "<blockquote>🔒 Скорость и автоматизация.</blockquote>\n"
-        "<blockquote>📈 Удобный и быстрый вывод средств.</blockquote>\n\n"
-        "<blockquote>• Комиссия сервиса: 10%</blockquote>\n"
-        "<blockquote>• Режим работы: 24/7</blockquote>\n"
-        "<blockquote>• Поддержка: @playerokevents</blockquote>\n\n"
+        "<blockquote>🎁 Автоматизированный алгоритм исполнения.\n"
+        "🔒 Скорость и автоматизация.\n"
+        "📈 Удобный и быстрый вывод средств.</blockquote>\n\n"
+        "<blockquote>• Комиссия сервиса: 10%\n"
+        "• Режим работы: 24/7\n"
+        "• Поддержка: @playerokevents</blockquote>\n\n"
         "📌 <b>Выберите нужный раздел ниже:</b>"
     )
     reply_markup = get_main_menu_keyboard()
